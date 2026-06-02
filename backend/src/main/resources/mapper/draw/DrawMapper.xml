@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tennisoop.api.draw.mapper.DrawMapper">
+
+  <resultMap id="DrawResultMap" type="com.tennisoop.api.draw.domain.Draw">
+    <id property="id" column="id" javaType="String"/>
+    <result property="tournamentId" column="tournament_id" javaType="String"/>
+    <result property="categoryId" column="category_id" javaType="String"/>
+    <result property="categoryName" column="category_name"/>
+    <result property="categoryType" column="category_type"/>
+    <result property="name" column="name"/>
+    <result property="format" column="format"/>
+    <result property="status" column="status"/>
+    <result property="totalRounds" column="total_rounds"/>
+    <result property="playerIds" column="player_ids"/>
+    <result property="teamIds" column="team_ids"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+  </resultMap>
+
+  <resultMap id="DrawSlotResultMap" type="com.tennisoop.api.draw.domain.DrawSlot">
+    <id property="id" column="id" javaType="String"/>
+    <result property="drawId" column="draw_id" javaType="String"/>
+    <result property="round" column="round"/>
+    <result property="position" column="position"/>
+    <result property="playerId" column="player_id" javaType="String"/>
+    <result property="playerName" column="player_name"/>
+    <result property="playerTeamName" column="player_team_name"/>
+    <result property="pairId" column="pair_id" javaType="String"/>
+    <result property="pairPlayerAName" column="pair_player_a_name"/>
+    <result property="pairPlayerBName" column="pair_player_b_name"/>
+    <result property="seedNumber" column="seed_number"/>
+    <result property="bye" column="is_bye"/>
+    <result property="matchId" column="match_id" javaType="String"/>
+    <result property="matchStatus" column="match_status"/>
+    <result property="matchResultType" column="match_result_type"/>
+    <result property="matchSets" column="match_sets"/>
+    <result property="matchCourtId" column="match_court_id" javaType="String"/>
+    <result property="matchCourtName" column="match_court_name"/>
+    <result property="matchOrder" column="match_order"/>
+    <result property="teamId" column="team_id" javaType="String"/>
+    <result property="teamName" column="team_name"/>
+    <result property="encounterId" column="encounter_id" javaType="String"/>
+    <result property="winner" column="winner"/>
+    <result property="createdAt" column="created_at"/>
+  </resultMap>
+
+  <sql id="drawSelectColumns">
+    d.id::text,
+    d.tournament_id::text,
+    d.category_id::text,
+    tc.name AS category_name,
+    tc.type AS category_type,
+    d.name,
+    d.format,
+    d.status,
+    d.total_rounds,
+    d.player_ids::text AS player_ids,
+    d.team_ids::text AS team_ids,
+    d.created_at,
+    d.updated_at
+  </sql>
+
+  <sql id="slotSelectColumns">
+    ds.id::text,
+    ds.draw_id::text,
+    ds.round,
+    ds.position,
+    ds.player_id::text,
+    p.name AS player_name,
+    t.name AS player_team_name,
+    ds.pair_id::text,
+    pa.name AS pair_player_a_name,
+    pb.name AS pair_player_b_name,
+    ds.seed_number,
+    ds.is_bye,
+    ds.team_id::text,
+    tm.name AS team_name,
+    ds.encounter_id::text,
+    ds.match_id::text,
+    m.status AS match_status,
+    m.result_type AS match_result_type,
+    m.sets::text AS match_sets,
+    m.court_id::text AS match_court_id,
+    c.name AS match_court_name,
+    m."order" AS match_order,
+    ds.winner,
+    ds.created_at
+  </sql>
+
+  <sql id="slotJoins">
+    LEFT JOIN players p ON ds.player_id = p.id
+    LEFT JOIN teams t ON p.team_id = t.id
+    LEFT JOIN pairs pr ON ds.pair_id = pr.id
+    LEFT JOIN players pa ON pr.player_a_id = pa.id
+    LEFT JOIN players pb ON pr.player_b_id = pb.id
+    LEFT JOIN teams tm ON ds.team_id = tm.id
+    LEFT JOIN matches m ON ds.match_id = m.id
+    LEFT JOIN courts c ON m.court_id = c.id
+  </sql>
+
+  <select id="findByTournamentId" resultMap="DrawResultMap">
+    SELECT <include refid="drawSelectColumns"/>
+    FROM draws d
+    LEFT JOIN tournament_categories tc ON d.category_id = tc.id
+    WHERE d.tournament_id = #{tournamentId}::uuid
+    ORDER BY d.created_at ASC
+  </select>
+
+  <select id="findById" resultMap="DrawResultMap">
+    SELECT <include refid="drawSelectColumns"/>
+    FROM draws d
+    LEFT JOIN tournament_categories tc ON d.category_id = tc.id
+    WHERE d.id = #{id}::uuid
+  </select>
+
+  <select id="existsByTournamentCategoryName" resultType="boolean">
+    SELECT EXISTS(
+      SELECT 1 FROM draws
+      WHERE tournament_id = #{tournamentId}::uuid
+        AND category_id = #{categoryId}::uuid
+        AND name = #{name}
+    )
+  </select>
+
+  <insert id="insertDraw">
+    INSERT INTO draws (id, tournament_id, category_id, name, format, status, total_rounds, player_ids, team_ids, created_at, updated_at)
+    VALUES (
+      #{id}::uuid,
+      #{tournamentId}::uuid,
+      #{categoryId}::uuid,
+      #{name},
+      #{format},
+      #{status},
+      #{totalRounds},
+      <choose>
+        <when test="playerIds != null">#{playerIds}::jsonb</when>
+        <otherwise>'[]'::jsonb</otherwise>
+      </choose>,
+      <choose>
+        <when test="teamIds != null">#{teamIds}::jsonb</when>
+        <otherwise>'[]'::jsonb</otherwise>
+      </choose>,
+      #{createdAt},
+      #{updatedAt}
+    )
+  </insert>
+
+  <delete id="deleteDraw">
+    DELETE FROM draws WHERE id = #{id}::uuid
+  </delete>
+
+  <update id="updateDrawStatus">
+    UPDATE draws SET status = #{status}, updated_at = NOW() WHERE id = #{id}::uuid
+  </update>
+
+  <select id="findSlotsByDrawId" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.draw_id = #{drawId}::uuid
+    ORDER BY ds.round ASC, ds.position ASC
+  </select>
+
+  <select id="findSlotById" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.id = #{id}::uuid
+  </select>
+
+  <insert id="insertSlot">
+    INSERT INTO draw_slots (id, draw_id, round, position, player_id, pair_id, seed_number, is_bye, match_id, created_at)
+    VALUES (
+      #{id}::uuid,
+      #{drawId}::uuid,
+      #{round},
+      #{position},
+      <choose>
+        <when test="playerId != null and playerId != ''">#{playerId}::uuid</when>
+        <otherwise>NULL</otherwise>
+      </choose>,
+      <choose>
+        <when test="pairId != null and pairId != ''">#{pairId}::uuid</when>
+        <otherwise>NULL</otherwise>
+      </choose>,
+      #{seedNumber},
+      #{bye},
+      <choose>
+        <when test="matchId != null and matchId != ''">#{matchId}::uuid</when>
+        <otherwise>NULL</otherwise>
+      </choose>,
+      #{createdAt}
+    )
+  </insert>
+
+  <update id="updateSlotPlacement">
+    UPDATE draw_slots
+    SET player_id   = <choose>
+          <when test="playerId != null and playerId != ''">#{playerId}::uuid</when>
+          <otherwise>NULL</otherwise>
+        </choose>,
+        seed_number  = #{seedNumber},
+        is_bye       = #{bye},
+        team_id      = NULL,
+        encounter_id = NULL
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateSlotMatchId">
+    UPDATE draw_slots SET match_id = <choose>
+      <when test="matchId != null and matchId != ''">#{matchId}::uuid</when>
+      <otherwise>NULL</otherwise>
+    </choose>
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateSlotPlayer">
+    UPDATE draw_slots
+    SET player_id = <choose>
+          <when test="playerId != null and playerId != ''">#{playerId}::uuid</when>
+          <otherwise>NULL</otherwise>
+        </choose>
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateSlotWinner">
+    UPDATE draw_slots SET winner = #{winner} WHERE id = #{id}::uuid
+  </update>
+
+  <update id="clearNonSeededSlots">
+    UPDATE draw_slots
+    SET player_id = NULL, team_id = NULL, is_bye = FALSE
+    WHERE draw_id = #{drawId}::uuid
+      AND seed_number IS NULL
+      AND match_id IS NULL
+  </update>
+
+  <select id="existsCategoryInTournament" resultType="boolean">
+    SELECT EXISTS(
+      SELECT 1 FROM tournament_categories
+      WHERE id = #{categoryId}::uuid
+        AND tournament_id = #{tournamentId}::uuid
+    )
+  </select>
+
+  <select id="existsPairInTournament" resultType="boolean">
+    SELECT EXISTS(
+      SELECT 1 FROM tournament_pairs
+      WHERE tournament_id = #{tournamentId}::uuid
+        AND pair_id = #{pairId}::uuid
+    )
+  </select>
+
+  <update id="updateSlotPair">
+    UPDATE draw_slots
+    SET pair_id     = <choose>
+          <when test="pairId != null and pairId != ''">#{pairId}::uuid</when>
+          <otherwise>NULL</otherwise>
+        </choose>,
+        seed_number = #{seedNumber}
+    WHERE id = #{id}::uuid
+  </update>
+
+  <select id="existsPlayerInTournament" resultType="boolean">
+    SELECT EXISTS(
+      SELECT 1 FROM tournament_players
+      WHERE tournament_id = #{tournamentId}::uuid
+        AND player_id = #{playerId}::uuid
+    )
+  </select>
+
+  <select id="findSlotsByDrawIdAndRound" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.draw_id = #{drawId}::uuid
+      AND ds.round = #{round}
+    ORDER BY ds.position ASC
+  </select>
+
+  <select id="findSlotsByDrawIdAndRoundLessThan" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.draw_id = #{drawId}::uuid
+      AND ds.round = #{round} - 1
+    ORDER BY ds.position ASC
+  </select>
+
+  <update id="shiftMatchOrders">
+    UPDATE matches
+    SET "order" = "order" + 1,
+        updated_at = NOW()
+    WHERE court_id = #{courtId}::uuid
+      AND "order" >= #{order}
+  </update>
+
+  <select id="findTournamentIdByDrawId" resultType="String">
+    SELECT tournament_id::text FROM draws WHERE id = #{drawId}::uuid
+  </select>
+
+  <select id="findTournamentIdByMatchId" resultType="String">
+    SELECT tournament_id::text FROM matches WHERE id = #{matchId}::uuid
+  </select>
+
+  <select id="findRrDrawsByCategoryId" resultMap="DrawResultMap">
+    SELECT <include refid="drawSelectColumns"/>
+    FROM draws d
+    LEFT JOIN tournament_categories tc ON d.category_id = tc.id
+    WHERE d.tournament_id = #{tournamentId}::uuid
+      AND d.category_id = #{categoryId}::uuid
+      AND d.format = 'round_robin'
+    ORDER BY d.created_at ASC
+  </select>
+
+  <select id="findPlayersByIds" resultType="com.tennisoop.api.draw.domain.RrPlayer">
+    SELECT
+      p.id::text    AS id,
+      p.name        AS name,
+      t.name        AS team
+    FROM players p
+    LEFT JOIN teams t ON p.team_id = t.id
+    WHERE p.id IN
+    <foreach item="id" collection="ids" open="(" separator="," close=")">
+      #{id}::uuid
+    </foreach>
+  </select>
+
+  <select id="findPairsByIds" resultType="com.tennisoop.api.draw.domain.RrPlayer">
+    SELECT
+      pr.id::text    AS id,
+      pa.name        AS playerAName,
+      pb.name        AS playerBName
+    FROM pairs pr
+    JOIN players pa ON pr.player_a_id = pa.id
+    JOIN players pb ON pr.player_b_id = pb.id
+    WHERE pr.id IN
+    <foreach item="id" collection="ids" open="(" separator="," close=")">
+      #{id}::uuid
+    </foreach>
+  </select>
+
+  <select id="findMatchIdsByDrawId" resultType="String">
+    SELECT DISTINCT m.id::text
+    FROM draw_slots ds
+    JOIN matches m ON ds.match_id = m.id
+    WHERE ds.draw_id = #{drawId}::uuid
+      AND ds.match_id IS NOT NULL
+  </select>
+
+  <select id="findDrawMatchRefByMatchId" resultType="com.tennisoop.api.draw.domain.DrawMatchRef">
+    SELECT
+      d.id::text      AS id,
+      d.name          AS name,
+      sa.round        AS round,
+      d.total_rounds  AS totalRounds,
+      r1a.position    AS sideAR1Position,
+      r1b.position    AS sideBR1Position,
+      r1a.seed_number AS sideASeedNumber,
+      r1b.seed_number AS sideBSeedNumber
+    FROM draw_slots sa
+    JOIN draws d ON sa.draw_id = d.id
+    JOIN draw_slots sb
+      ON sb.match_id = sa.match_id
+      AND sb.draw_id = sa.draw_id
+      AND sb.position > sa.position
+    LEFT JOIN draw_slots r1a
+      ON r1a.draw_id = sa.draw_id AND r1a.round = 1
+      AND (
+        (sa.player_id IS NOT NULL AND r1a.player_id = sa.player_id)
+        OR (sa.pair_id IS NOT NULL AND r1a.pair_id = sa.pair_id)
+      )
+    LEFT JOIN draw_slots r1b
+      ON r1b.draw_id = sb.draw_id AND r1b.round = 1
+      AND (
+        (sb.player_id IS NOT NULL AND r1b.player_id = sb.player_id)
+        OR (sb.pair_id IS NOT NULL AND r1b.pair_id = sb.pair_id)
+      )
+    WHERE sa.match_id = #{matchId}::uuid
+      AND sa.position &lt; sb.position
+
+    UNION ALL
+
+    SELECT
+      d.id::text AS id,
+      d.name     AS name,
+      0          AS round,
+      0          AS totalRounds,
+      NULL       AS sideAR1Position,
+      NULL       AS sideBR1Position,
+      NULL       AS sideASeedNumber,
+      NULL       AS sideBSeedNumber
+    FROM matches m
+    JOIN draws d ON m.draw_id = d.id
+    WHERE m.id = #{matchId}::uuid
+      AND d.format = 'round_robin'
+      AND NOT EXISTS (
+        SELECT 1 FROM draw_slots ds WHERE ds.match_id = #{matchId}::uuid
+      )
+
+    UNION ALL
+
+    SELECT
+      d.id::text AS id,
+      d.name     AS name,
+      0          AS round,
+      0          AS totalRounds,
+      NULL       AS sideAR1Position,
+      NULL       AS sideBR1Position,
+      NULL       AS sideASeedNumber,
+      NULL       AS sideBSeedNumber
+    FROM matches m
+    JOIN team_encounters te ON m.team_encounter_id = te.id
+    JOIN draws d ON te.draw_id = d.id
+    WHERE m.id = #{matchId}::uuid
+      AND te.draw_id IS NOT NULL
+  </select>
+
+  <!-- team_battle用 -->
+  <update id="updateSlotTeam">
+    UPDATE draw_slots SET team_id = #{teamId}::uuid, is_bye = FALSE WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateSlotTeamWithSeed">
+    UPDATE draw_slots
+    SET team_id     = #{teamId}::uuid,
+        seed_number = #{seedNumber},
+        is_bye      = FALSE
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateSlotEncounterId">
+    UPDATE draw_slots SET encounter_id = #{encounterId}::uuid WHERE id = #{id}::uuid
+  </update>
+
+  <select id="existsTeamInTournamentCategory" resultType="boolean">
+    SELECT EXISTS (
+      SELECT 1 FROM draws d
+      WHERE d.tournament_id = #{tournamentId}::uuid
+        AND d.category_id = #{categoryId}::uuid
+        AND d.team_ids::jsonb @> ('"' || #{teamId} || '"')::jsonb
+    )
+  </select>
+
+  <update id="updateCategoryRubbers">
+    UPDATE tournament_categories
+    SET rubbers = #{rubbers}::jsonb
+    WHERE id = #{categoryId}::uuid
+  </update>
+
+  <select id="findSlotsByEncounterId" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.encounter_id = #{encounterId}::uuid
+  </select>
+
+  <select id="findSlotsByDrawIds" resultMap="DrawSlotResultMap">
+    SELECT <include refid="slotSelectColumns"/>
+    FROM draw_slots ds
+    <include refid="slotJoins"/>
+    WHERE ds.draw_id IN
+    <foreach item="id" collection="drawIds" open="(" separator="," close=")">
+      #{id}::uuid
+    </foreach>
+    ORDER BY ds.draw_id, ds.round ASC, ds.position ASC
+  </select>
+
+</mapper>
