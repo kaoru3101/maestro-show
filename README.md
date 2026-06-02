@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **管理画面** | https://tennis-oop-front.vercel.app/login |
-| **公開ビュー（認証不要）** | [TODO: `/view/:share_token` のURLを記入] |
+| **公開ビュー（認証不要）** | https://tennis-oop-front.vercel.app/view/2a061fe5-31ff-4ca2-b648-d8ed87891464 |
 
 **デモ用アカウント（管理画面ログイン）**
 
