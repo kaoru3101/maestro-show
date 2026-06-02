@@ -343,7 +343,8 @@ maestro-show/
 │   ├── __tests__/
 │   │   ├── auth.test.ts                 # lib/auth.ts：トークン保存・取得・クリアのユニットテスト
 │   │   ├── drawUtils.test.ts            # ラウンドラベル計算・スロットグルーピングのユニットテスト
-│   │   └── schemas.test.ts             # zod スキーマ（matchStatus・createDraw）のバリデーションテスト
+│   │   ├── schemas.test.ts              # zod スキーマ（matchStatus・createDraw）のバリデーションテスト
+│   │   └── Button.test.tsx              # Buttonコンポーネント：レンダリング・クリック・disabled・variant
 │   ├── types/
 │   │   └── api.ts                       # 全APIレスポンス型定義（50+インターフェース）
 │   ├── lib/
